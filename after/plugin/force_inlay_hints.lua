@@ -12,7 +12,7 @@ local function enable_go_inlay_hints()
         pcall(function()
           -- Для Neovim 0.10+
           if vim.lsp.inlay_hint then
-            vim.lsp.inlay_hint.enable(bufnr, true)
+            vim.lsp.inlay_hint.enable(true, { bufnr = bufnr })
           -- Для старых версий Neovim
           elseif vim.lsp.buf.inlay_hint then
             vim.lsp.buf.inlay_hint(bufnr, true)
@@ -34,7 +34,7 @@ vim.defer_fn(function()
       vim.defer_fn(function()
         pcall(function()
           if vim.lsp.inlay_hint then
-            vim.lsp.inlay_hint.enable(args.buf, true)
+            vim.lsp.inlay_hint.enable(true, { bufnr = args.buf })
           elseif vim.lsp.buf.inlay_hint then
             vim.lsp.buf.inlay_hint(args.buf, true)
           end
@@ -55,7 +55,7 @@ vim.defer_fn(function()
         vim.defer_fn(function()
           pcall(function()
             if vim.lsp.inlay_hint then
-              vim.lsp.inlay_hint.enable(args.buf, true)
+              vim.lsp.inlay_hint.enable(true, { bufnr = args.buf })
             elseif vim.lsp.buf.inlay_hint then
               vim.lsp.buf.inlay_hint(args.buf, true)
             end

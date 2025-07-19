@@ -40,7 +40,7 @@ local function setup_go_highlighting_and_hints()
           -- Пробуем включить inlay hints
           pcall(function()
             if vim.lsp.inlay_hint then
-              vim.lsp.inlay_hint.enable(bufnr, true)
+              vim.lsp.inlay_hint.enable(true, { bufnr = bufnr })
               print("Inlay hints enabled for buffer " .. bufnr)
             elseif vim.lsp.buf.inlay_hint then
               vim.lsp.buf.inlay_hint(bufnr, true)

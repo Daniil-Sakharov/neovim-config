@@ -22,7 +22,7 @@ local function enable_go_inlay_hints_now()
               pcall(function()
                 -- Для Neovim 0.10+
                 if vim.lsp.inlay_hint then
-                  vim.lsp.inlay_hint.enable(bufnr, true)
+                  vim.lsp.inlay_hint.enable(true, { bufnr = bufnr })
                   print("Подсказки типов включены для буфера " .. bufnr)
                 -- Для старых версий Neovim
                 elseif vim.lsp.buf.inlay_hint then
@@ -64,7 +64,7 @@ vim.api.nvim_create_user_command("GoInlayHintsDisable", function()
     if vim.api.nvim_buf_is_valid(bufnr) then
       pcall(function()
         if vim.lsp.inlay_hint then
-          vim.lsp.inlay_hint.enable(bufnr, false)
+          vim.lsp.inlay_hint.enable(false, { bufnr = bufnr })
         end
       end)
     end

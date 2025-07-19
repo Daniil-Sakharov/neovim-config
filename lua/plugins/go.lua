@@ -88,7 +88,7 @@ return {
             pcall(function()
               -- Для Neovim 0.10+
               if vim.lsp.inlay_hint then
-                vim.lsp.inlay_hint.enable(bufnr, true)
+                vim.lsp.inlay_hint.enable(true, { bufnr = bufnr })
               -- Для старых версий Neovim
               elseif vim.lsp.buf.inlay_hint then
                 vim.lsp.buf.inlay_hint(bufnr, true)
@@ -99,7 +99,7 @@ return {
             vim.defer_fn(function()
               pcall(function()
                 if vim.lsp.inlay_hint then
-                  vim.lsp.inlay_hint.enable(bufnr, true)
+                  vim.lsp.inlay_hint.enable(true, { bufnr = bufnr })
                 elseif vim.lsp.buf.inlay_hint then
                   vim.lsp.buf.inlay_hint(bufnr, true)
                 end
@@ -112,8 +112,8 @@ return {
             pcall(function()
               -- Для Neovim 0.10+
               if vim.lsp.inlay_hint then
-                local enabled = not vim.lsp.inlay_hint.is_enabled(bufnr)
-                vim.lsp.inlay_hint.enable(bufnr, enabled)
+                local enabled = not vim.lsp.inlay_hint.is_enabled({ bufnr = bufnr })
+                vim.lsp.inlay_hint.enable(enabled, { bufnr = bufnr })
                 vim.notify("Inlay hints " .. (enabled and "enabled" or "disabled"), vim.log.levels.INFO)
               -- Для старых версий Neovim
               elseif vim.lsp.buf.inlay_hint then
@@ -226,7 +226,7 @@ return {
           vim.defer_fn(function()
             pcall(function()
               if vim.lsp.inlay_hint then
-                vim.lsp.inlay_hint.enable(0, true)
+                vim.lsp.inlay_hint.enable(true, { bufnr = 0 })
               elseif vim.lsp.buf.inlay_hint then
                 vim.lsp.buf.inlay_hint(0, true)
               end
@@ -240,7 +240,7 @@ return {
       vim.api.nvim_create_user_command("EnableGoTypeHints", function()
         pcall(function()
           if vim.lsp.inlay_hint then
-            vim.lsp.inlay_hint.enable(0, true)
+            vim.lsp.inlay_hint.enable(true, { bufnr = 0 })
           elseif vim.lsp.buf.inlay_hint then
             vim.lsp.buf.inlay_hint(0, true)
           end

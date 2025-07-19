@@ -19,7 +19,7 @@ vim.api.nvim_create_autocmd({"BufEnter", "BufWritePost", "InsertLeave"}, {
       for _, client in ipairs(clients) do
         if client.name == "gopls" and client.server_capabilities.inlayHintProvider then
           if vim.lsp.inlay_hint then
-            vim.lsp.inlay_hint.enable(bufnr, true)
+            vim.lsp.inlay_hint.enable(true, { bufnr = bufnr })
           elseif vim.lsp.buf.inlay_hint then
             vim.lsp.buf.inlay_hint(bufnr, true)
           end
@@ -27,12 +27,12 @@ vim.api.nvim_create_autocmd({"BufEnter", "BufWritePost", "InsertLeave"}, {
       end
       
       -- Способ 2: прямая команда Neovim
-      vim.cmd("silent! lua if vim.lsp.inlay_hint then vim.lsp.inlay_hint.enable(" .. bufnr .. ", true) end")
+      vim.cmd("silent! lua if vim.lsp.inlay_hint then vim.lsp.inlay_hint.enable(true, { bufnr = " .. bufnr .. " }) end")
       
       -- Способ 3: через API функцию (для Neovim 0.11+)
       pcall(function() 
         if vim.lsp.inlay_hint then
-          vim.lsp.inlay_hint.enable(bufnr, true)
+          vim.lsp.inlay_hint.enable(true, { bufnr = bufnr })
         end
       end)
     end, 1000)
@@ -51,7 +51,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
       vim.defer_fn(function()
         pcall(function()
           if vim.lsp.inlay_hint then
-            vim.lsp.inlay_hint.enable(buf, true)
+            vim.lsp.inlay_hint.enable(true, { bufnr = buf })
           elseif vim.lsp.buf.inlay_hint then
             vim.lsp.buf.inlay_hint(buf, true)
           end
@@ -87,7 +87,7 @@ vim.defer_fn(function()
             
             -- Принудительно включаем подсказки
             if vim.lsp.inlay_hint then
-              vim.lsp.inlay_hint.enable(bufnr, true)
+              vim.lsp.inlay_hint.enable(true, { bufnr = bufnr })
               print("Inlay hints включены через vim.lsp.inlay_hint")
             elseif vim.lsp.buf.inlay_hint then
               vim.lsp.buf.inlay_hint(bufnr, true)
@@ -120,7 +120,7 @@ vim.defer_fn(function()
         vim.defer_fn(function()
           local bufnr = vim.api.nvim_get_current_buf()
           if vim.lsp.inlay_hint then
-            vim.lsp.inlay_hint.enable(bufnr, true)
+            vim.lsp.inlay_hint.enable(true, { bufnr = bufnr })
           end
         end, 1000)
       end, 500)
