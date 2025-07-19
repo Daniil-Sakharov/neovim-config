@@ -19,9 +19,9 @@ vim.api.nvim_create_autocmd({"BufEnter", "BufWritePost", "InsertLeave"}, {
       for _, client in ipairs(clients) do
         if client.name == "gopls" and client.server_capabilities.inlayHintProvider then
           if vim.lsp.inlay_hint then
-            vim.lsp.inlay_hint.enable(bufnr, true)
+            vim.lsp.inlay_hint.enable(true)
           elseif vim.lsp.buf.inlay_hint then
-            vim.lsp.buf.inlay_hint(bufnr, true)
+            vim.lsp.buf.inlay_hint(true)
           end
         end
       end
@@ -51,9 +51,9 @@ vim.api.nvim_create_autocmd("LspAttach", {
       vim.defer_fn(function()
         pcall(function()
           if vim.lsp.inlay_hint then
-            vim.lsp.inlay_hint.enable(buf, true)
+            vim.lsp.inlay_hint.enable(true)
           elseif vim.lsp.buf.inlay_hint then
-            vim.lsp.buf.inlay_hint(buf, true)
+            vim.lsp.buf.inlay_hint(true)
           end
         end)
       end, 500)
@@ -248,4 +248,13 @@ vim.api.nvim_create_autocmd({"BufEnter", "BufWinEnter"}, {
     end, 50)
   end,
   group = vim.api.nvim_create_augroup("KeymapsFixBuffer", { clear = true }),
+})
+
+-- Гарантируем прозрачность TabLineFill и BufferLineFill для bufferline/tabline
+vim.api.nvim_create_autocmd("ColorScheme", {
+  pattern = "*",
+  callback = function()
+    vim.cmd [[hi TabLineFill guibg=NONE ctermbg=NONE]]
+    vim.cmd [[hi BufferLineFill guibg=NONE ctermbg=NONE]]
+  end
 })
