@@ -1,83 +1,115 @@
--- Модуль для управления подсказками типов в Go файлах
+-- Модуль для улучшенного управления подсказками типов в Go файлах
+-- Использует современный API Neovim 0.10+
 
 local M = {}
 
--- Настройка конфигурации gopls для подсказок типов
-function M.configure_gopls()
-  -- Получаем доступ к lspconfig
-  local lspconfig_ok, lspconfig = pcall(require, "lspconfig")
-  if not lspconfig_ok then
-    print("lspconfig не найден")
-    return
+-- Функция для безопасного включения inlay hints
+local function safe_enable_inlay_hints(bufnr)
+  if not bufnr or not vim.api.nvim_buf_is_valid(bufnr) then
+    return false
   end
   
-  -- Перенастраиваем gopls с активацией всех подсказок типов
-  lspconfig.gopls.setup({
-    settings = {
-      gopls = {
-        -- Включаем все типы подсказок
-        hints = {
-          assignVariableTypes = true,
-          compositeLiteralFields = true,
-          compositeLiteralTypes = true,
-          constantValues = true,
-          functionTypeParameters = true,
-          parameterNames = true,
-          rangeVariableTypes = true,
-        },
-        -- Отключаем семантические токены, которые могут мешать подсказкам
-        semanticTokens = false,
-      },
-    },
-    -- Переопределяем on_attach для включения подсказок
-    on_attach = function(client, bufnr)
-      -- Отключаем семантические токены
-      client.server_capabilities.semanticTokensProvider = nil
-      
-      -- Включаем подсказки типов
-      if client.server_capabilities.inlayHintProvider then
-        -- Принудительно включаем с задержкой для надежности
-        vim.defer_fn(function()
-          pcall(function()
-            if vim.lsp.inlay_hint then
-              vim.lsp.inlay_hint.enable(bufnr, true)
-              print("Подсказки типов включены для буфера " .. bufnr)
-            end
-          end)
-        end, 500)
-      end
-    end,
-  })
+  -- Проверяем, что это Go файл
+  local ft = vim.api.nvim_get_option_value("filetype", { buf = bufnr })
+  if ft ~= "go" then
+    return false
+  end
   
-  print("Gopls перенастроен для подсказок типов")
+  -- Проверяем наличие активного gopls клиента
+  local clients = vim.lsp.get_clients({ bufnr = bufnr, name = "gopls" })
+  if #clients == 0 then
+    return false
+  end
+  
+  -- Включаем inlay hints с использованием современного API
+  local success = pcall(function()
+    if vim.lsp.inlay_hint and vim.lsp.inlay_hint.enable then
+      vim.lsp.inlay_hint.enable(true, { bufnr = bufnr })
+      return true
+    end
+  end)
+  
+  return success
 end
 
--- Функция для включения подсказок типов для всех Go буферов
-function M.enable_for_all_buffers()
+-- Функция для включения inlay hints во всех Go буферах
+function M.enable_for_all_go_buffers()
+  local enabled_count = 0
+  
   for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.api.nvim_buf_is_valid(bufnr) then
-      local ft = vim.api.nvim_buf_get_option(bufnr, "filetype")
-      if ft == "go" then
-        -- Пробуем через прямой вызов
-        pcall(function()
-          if vim.lsp.inlay_hint then
-            vim.lsp.inlay_hint.enable(bufnr, true)
-          elseif vim.lsp.buf.inlay_hint then
-            vim.lsp.buf.inlay_hint(bufnr, true)
-          end
-        end)
+    if vim.api.nvim_buf_is_loaded(bufnr) then
+      if safe_enable_inlay_hints(bufnr) then
+        enabled_count = enabled_count + 1
       end
     end
   end
+  
+  if enabled_count > 0 then
+    print(string.format("Inlay hints enabled for %d Go buffer(s)", enabled_count))
+  end
+  
+  return enabled_count
 end
 
--- Функция для обновления настроек gopls клиента
-function M.update_gopls_settings()
-  for _, client in ipairs(vim.lsp.get_active_clients()) do
-    if client.name == "gopls" then
-      -- Обновляем настройки gopls
-      client.config.settings = client.config.settings or {}
-      client.config.settings.gopls = client.config.settings.gopls or {}
+-- Функция для проверки статуса inlay hints
+function M.check_inlay_hints_status()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local ft = vim.api.nvim_get_option_value("filetype", { buf = bufnr })
+  
+  if ft ~= "go" then
+    print("Not a Go file")
+    return
+  end
+  
+  local clients = vim.lsp.get_clients({ bufnr = bufnr, name = "gopls" })
+  if #clients == 0 then
+    print("No gopls client attached")
+    return
+  end
+  
+  local client = clients[1]
+  local supports_hints = client.server_capabilities.inlayHintProvider
+  
+  local enabled = false
+  if vim.lsp.inlay_hint and vim.lsp.inlay_hint.is_enabled then
+    enabled = vim.lsp.inlay_hint.is_enabled({ bufnr = bufnr })
+  end
+  
+  print(string.format("Gopls inlay hint support: %s", supports_hints and "Yes" or "No"))
+  print(string.format("Inlay hints enabled: %s", enabled and "Yes" or "No"))
+  print(string.format("Buffer: %d, Client: %s", bufnr, client.name))
+end
+
+-- Функция для перезагрузки gopls и включения hints
+function M.restart_gopls_with_hints()
+  -- Получаем все Go буферы
+  local go_buffers = {}
+  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_loaded(bufnr) then
+      local ft = vim.api.nvim_get_option_value("filetype", { buf = bufnr })
+      if ft == "go" then
+        table.insert(go_buffers, bufnr)
+      end
+    end
+  end
+  
+  -- Перезапускаем gopls
+  vim.cmd("LspRestart gopls")
+  
+  -- Включаем hints с задержкой для всех Go буферов
+  vim.defer_fn(function()
+    for _, bufnr in ipairs(go_buffers) do
+      safe_enable_inlay_hints(bufnr)
+    end
+    print(string.format("Gopls restarted and inlay hints enabled for %d buffer(s)", #go_buffers))
+  end, 3000)
+end
+
+-- Функция для принудительного обновления конфигурации gopls
+function M.force_update_gopls_config()
+  for _, client in ipairs(vim.lsp.get_clients({ name = "gopls" })) do
+    -- Обновляем настройки hints
+    if client.config.settings and client.config.settings.gopls then
       client.config.settings.gopls.hints = {
         assignVariableTypes = true,
         compositeLiteralFields = true,
@@ -87,65 +119,78 @@ function M.update_gopls_settings()
         parameterNames = true,
         rangeVariableTypes = true,
       }
-      client.config.settings.gopls.semanticTokens = false
       
-      -- Перезагружаем клиента
+      -- Отправляем обновленную конфигурацию
       client.notify("workspace/didChangeConfiguration", {
         settings = client.config.settings
       })
       
-      print("Настройки gopls обновлены")
+      print("Gopls configuration updated")
     end
   end
 end
 
--- Функция для перезапуска gopls и включения подсказок
-function M.restart_and_enable()
-  -- Перезапускаем gopls
-  vim.cmd("LspRestart gopls")
-  
-  -- Обновляем настройки и включаем подсказки типов с задержкой
-  vim.defer_fn(function()
-    M.update_gopls_settings()
-    M.enable_for_all_buffers()
-  end, 2000)
-  
-  print("Gopls перезапущен и подсказки типов будут включены")
-end
-
--- Создаем команды
+-- Настройка автокоманд и команд
 function M.setup()
-  -- Включаем подсказки типов при загрузке модуля
-  vim.defer_fn(function()
-    M.configure_gopls()
-    M.enable_for_all_buffers()
-  end, 1000)
-  
-  -- Создаем команды для управления подсказками
-  vim.api.nvim_create_user_command("GoRestartLspAndEnableHints", M.restart_and_enable, {})
-  vim.api.nvim_create_user_command("GoEnableTypeHints", M.enable_for_all_buffers, {})
-  
-  -- Создаем таймер для периодического включения подсказок
-  local timer = vim.loop.new_timer()
-  timer:start(5000, 10000, vim.schedule_wrap(M.enable_for_all_buffers))
-  
-  -- Автоматически включаем при открытии Go файлов
-  vim.api.nvim_create_autocmd("FileType", {
-    pattern = "go",
-    callback = function()
-      vim.defer_fn(M.enable_for_all_buffers, 1000)
-    end,
-    group = vim.api.nvim_create_augroup("GoTypeHintsModule", { clear = true }),
+  -- Создаем пользовательские команды
+  vim.api.nvim_create_user_command("GoEnableInlayHints", M.enable_for_all_go_buffers, {
+    desc = "Enable inlay hints for all Go buffers"
   })
   
-  -- Включаем при сохранении и входе в буфер
-  vim.api.nvim_create_autocmd({"BufEnter", "BufWritePost"}, {
+  vim.api.nvim_create_user_command("GoCheckInlayHints", M.check_inlay_hints_status, {
+    desc = "Check inlay hints status for current buffer"
+  })
+  
+  vim.api.nvim_create_user_command("GoRestartLspHints", M.restart_gopls_with_hints, {
+    desc = "Restart gopls and enable inlay hints"
+  })
+  
+  vim.api.nvim_create_user_command("GoUpdateConfig", M.force_update_gopls_config, {
+    desc = "Force update gopls configuration"
+  })
+  
+  -- Создаем группу автокоманд
+  local augroup = vim.api.nvim_create_augroup("CustomGoInlayHints", { clear = true })
+  
+  -- Включаем hints при подключении LSP к Go файлам
+  vim.api.nvim_create_autocmd("LspAttach", {
+    group = augroup,
+    callback = function(args)
+      local client = vim.lsp.get_client_by_id(args.data.client_id)
+      if not client or client.name ~= "gopls" then
+        return
+      end
+      
+      local bufnr = args.buf
+      local ft = vim.api.nvim_get_option_value("filetype", { buf = bufnr })
+      if ft ~= "go" then
+        return
+      end
+      
+      -- Включаем hints с задержкой
+      vim.defer_fn(function()
+        safe_enable_inlay_hints(bufnr)
+      end, 2000)
+    end,
+  })
+  
+  -- Периодически проверяем и включаем hints
+  vim.api.nvim_create_autocmd({"BufEnter", "InsertLeave"}, {
+    group = augroup,
     pattern = "*.go",
     callback = function()
-      vim.defer_fn(M.enable_for_all_buffers, 500)
+      vim.defer_fn(function()
+        safe_enable_inlay_hints(0)
+      end, 500)
     end,
-    group = vim.api.nvim_create_augroup("GoTypeHintsRefresh", { clear = true }),
   })
+  
+  -- Создаем маппинги
+  vim.keymap.set("n", "<leader>ih", M.enable_for_all_go_buffers, { desc = "Enable Go inlay hints" })
+  vim.keymap.set("n", "<leader>ic", M.check_inlay_hints_status, { desc = "Check inlay hints status" })
+  vim.keymap.set("n", "<leader>ir", M.restart_gopls_with_hints, { desc = "Restart gopls with hints" })
+  
+  print("Custom Go inlay hints module loaded")
 end
 
 return M 

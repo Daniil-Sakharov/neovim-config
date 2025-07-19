@@ -22,7 +22,7 @@ return {
 
 			local lspconfig = require("lspconfig")
 			
-			-- Ограничение использования памяти для gopls
+			-- Оптимизированная настройка gopls с поддержкой inlay hints
 			lspconfig.gopls.setup({
 				settings = {
 					gopls = {
@@ -48,22 +48,43 @@ return {
 							regenerate_cgo = false, -- Отключаем для экономии ресурсов
 							upgrade_dependency = false, -- Отключаем для экономии ресурсов
 						},
-						-- Ограничиваем подсказки только необходимыми
+						-- Включаем все подсказки типов для лучшего опыта разработки
 						hints = {
-							assignVariableTypes = false,
-							compositeLiteralFields = false,
-							compositeLiteralTypes = false,
-							constantValues = false,
+							assignVariableTypes = true,
+							compositeLiteralFields = true,
+							compositeLiteralTypes = true,
+							constantValues = true,
 							functionTypeParameters = true,
 							parameterNames = true,
-							rangeVariableTypes = false,
+							rangeVariableTypes = true,
 						},
+						-- Отключаем семантические токены, чтобы они не мешали подсветке
+						semanticTokens = false,
 						-- Ограничение использования памяти
 						memoryMode = "DegradeClosed", -- Экономия памяти для закрытых файлов
 						-- Ограничение использования CPU
 						matcher = "CaseSensitive", -- Более быстрый алгоритм сопоставления
 					},
 				},
+				-- Включаем inlay hints при подключении клиента
+				on_attach = function(client, bufnr)
+					-- Отключаем семантические токены, чтобы они не конфликтовали с подсветкой
+					if client.server_capabilities.semanticTokensProvider then
+						client.server_capabilities.semanticTokensProvider = nil
+					end
+					
+					-- Включаем inlay hints, если поддерживается
+					if client.server_capabilities.inlayHintProvider then
+						vim.defer_fn(function()
+							pcall(function()
+								-- Используем современный API для Neovim 0.10+
+								if vim.lsp.inlay_hint and vim.lsp.inlay_hint.enable then
+									vim.lsp.inlay_hint.enable(true, { bufnr = bufnr })
+								end
+							end)
+						end, 1000)
+					end
+				end,
 				-- Ограничиваем работу LSP для больших файлов
 				before_init = function(params)
 					local path = params.rootUri and vim.uri_to_fname(params.rootUri) or vim.fn.getcwd()
@@ -215,6 +236,27 @@ return {
 						vim.keymap.set("n", "<leader>gt", function() 
 							vim.lsp.buf.code_action({ context = { only = { "source.typeImpl" } }, apply = true })
 						end, opts)
+						
+						-- Toggle inlay hints
+						vim.keymap.set("n", "<leader>th", function()
+							if vim.lsp.inlay_hint and vim.lsp.inlay_hint.enable then
+								local current = vim.lsp.inlay_hint.is_enabled({ bufnr = ev.buf })
+								vim.lsp.inlay_hint.enable(not current, { bufnr = ev.buf })
+								print("Inlay hints " .. (not current and "enabled" or "disabled"))
+							end
+						end, { buffer = ev.buf, desc = "Toggle Inlay Hints" })
+						
+						-- Force enable inlay hints for Go files
+						local client = vim.lsp.get_client_by_id(ev.data.client_id)
+						if client and client.name == "gopls" and client.server_capabilities.inlayHintProvider then
+							vim.defer_fn(function()
+								pcall(function()
+									if vim.lsp.inlay_hint and vim.lsp.inlay_hint.enable then
+										vim.lsp.inlay_hint.enable(true, { bufnr = ev.buf })
+									end
+								end)
+							end, 1500)
+						end
 					end
 				end,
 			})
